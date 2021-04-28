@@ -10,13 +10,10 @@
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.math.BigInteger;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.util.Arrays;
 import java.util.Scanner;
 
 /**
@@ -35,9 +32,6 @@ public class Reporter {
     /** The usage message */
     private static final String USAGE = "Usage: java Reporter <rhost> <rport>" +
             " <privatekeyfile>\n";
-
-    /** The buffer size */
-    private static final int BUFFER_SIZE = 260;
 
     /**
      * The driver method
@@ -59,8 +53,8 @@ public class Reporter {
         try{
             rport = Integer.parseInt(args[1]);
         } catch( NumberFormatException nfe ) {
-            System.err.println(USAGE);
             System.err.printf("'%s' not a valid port\n", args[1]);
+            System.err.println(USAGE);
             System.exit(1);
         } catch (IndexOutOfBoundsException iob){
             indexOutOfBounds(iob);
@@ -98,26 +92,10 @@ public class Reporter {
             System.exit(1);
         }
 
-        // listen for a packet
-        byte[] buffer = new byte[BUFFER_SIZE];
-        BigInteger lMessage;
-        OAEP oaep = new OAEP();
-        while(true) {
-            try {
-                // get the datagram packet with the encrypted message
-                DatagramPacket dp = new DatagramPacket(buffer, 0, buffer.length);
-                rsocket.receive(dp);
-
-                // get payload
-                byte[] payload = Arrays.copyOf(buffer, dp.getLength());
-                lMessage = new BigInteger(payload);
-                System.out.println(decryptMessage(lMessage, exponent, modulus, oaep));
-            } catch (IOException ignored) {
-                // ignore an error receiving packet
-            } catch (NumberFormatException nfe){
-                System.err.println("ERROR");
-            }
-        }
+        // init model and proxy
+        LeakerProxy proxy = new LeakerProxy(rsocket);
+        ReporterModel model = new ReporterModel(exponent, modulus);
+        proxy.setListener(model);
     }
 
     /**

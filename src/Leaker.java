@@ -9,13 +9,10 @@
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.math.BigInteger;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.util.Random;
 import java.util.Scanner;
 
 /**
@@ -33,9 +30,6 @@ public class Leaker {
     /** The usage message */
     private static final String USAGE = "Usage: java Leaker <rhost> <rport> " +
             "<lhost> <lport> <publickeyfile> <message>\n";
-
-    /** The seed size */
-    private static final int SEED_SIZE = 32;
 
     /**
      * The driver function
@@ -59,6 +53,7 @@ public class Leaker {
         } catch (IndexOutOfBoundsException iob){
             indexOutOfBounds(iob);
         }
+        InetSocketAddress rInetAddr = new InetSocketAddress(rhost, rport);
 
         // get lhost
         String lhost = null;
@@ -115,45 +110,8 @@ public class Leaker {
             indexOutOfBounds(iob);
         }
 
-        // Encrypt the message
-        BigInteger encryptedMessage = encryptMessage(message, exponent, modulus);
-
-        // Create datagram
-        byte[] buffer = encryptedMessage.toByteArray();
-        try{
-            DatagramPacket dp = new DatagramPacket(buffer, 0, buffer.length,
-                    new InetSocketAddress(rhost, rport));
-            lsocket.send(dp);
-        } catch (IOException ioException) {
-            ioException.printStackTrace();
-        }
-    }
-
-    /**
-     * Encrypt the message
-     *
-     * @param message The message to encrypt
-     * @param exponent the Reporters public key exponent
-     * @param modulus the Reporters public key modulus
-     * @return the BigInteger that has been encoded and encrypted
-     */
-    private static BigInteger encryptMessage(String message,
-                                             BigInteger exponent,
-                                             BigInteger modulus){
-        // initialize encoder
-        OAEP oaep = new OAEP();
-
-        // Create random seed
-        Random random = new Random();
-        byte[] seed = new byte[SEED_SIZE];
-        for(int i = 0; i < seed.length; i++)
-            seed[i] = (byte)random.nextInt();
-
-        // BigInteger encodedMessage = oaep
-        BigInteger encoded = oaep.encode(message, seed);
-
-        // encrypt message and return
-        return encoded.modPow(exponent, modulus);
+        ReporterProxy proxy = new ReporterProxy(lsocket, rInetAddr);
+        LeakerModel model = new LeakerModel(exponent, modulus, message, proxy);
     }
 
     /**
